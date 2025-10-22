@@ -23,3 +23,16 @@ export interface InstructionMetric {
   category: InstructionCategory
   count: number
 }
+
+export interface InstructionLogFileMetadata {
+  name: string
+  size: number
+  instructionCount: number
+  lastModified?: number
+}
+
+export interface InstructionLogParseError {
+  line: number
+  message: string
+  raw?: string
+}
