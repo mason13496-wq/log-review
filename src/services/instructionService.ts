@@ -1,134 +1,97 @@
 import { z } from 'zod'
 
-import type { InstructionLogEntry, InstructionPayload } from '@/types/instruction'
-import { safeParseJson } from '@/utils/json'
+import type { InstructionLogEntry, InstructionLogParseError } from '@/types/instruction'
 
 const payloadSchema = z.object({
   revision: z.number(),
   summary: z.string(),
-  steps: z.array(z.string()),
+  steps: z.array(z.string()).min(1, 'Payload.steps must include at least one step'),
   ownerNotes: z.string().optional(),
 })
 
 const categorySchema = z.enum(['quality', 'compliance', 'safety', 'efficiency'] as const)
 const statusSchema = z.enum(['pending', 'in_review', 'approved', 'rejected'] as const)
 
-const instructionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
+const instructionRecordSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+  title: z.string().min(1, 'title is required'),
   category: categorySchema,
   status: statusSchema,
-  createdAt: z.string(),
-  owner: z.string(),
-  payload: z.string(),
+  createdAt: z
+    .string()
+    .min(1, 'createdAt is required')
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      message: 'createdAt must be a valid ISO date string',
+    }),
+  owner: z.string().min(1, 'owner is required'),
+  payload: payloadSchema,
 })
 
-const instructionResponseSchema = z.array(instructionSchema)
+export type InstructionRecord = z.infer<typeof instructionRecordSchema>
 
-const RAW_INSTRUCTION_RESPONSE = JSON.stringify(
-  [
-    {
-      id: 'LOG-1001',
-      title: 'Verify calibration parameters',
-      category: 'quality',
-      status: 'pending',
-      createdAt: '2024-07-18T09:15:00Z',
-      owner: 'Alex Smith',
-      payload: JSON.stringify({
-        revision: 4,
-        summary: 'Confirm that all calibration values align with the v4 baseline.',
-        steps: [
-          'Compare calibration snapshot with baseline profile.',
-          'Document any deviations greater than 2%.',
-          'Escalate discrepancies to the quality lead.',
-        ],
-      } satisfies InstructionPayload),
-    },
-    {
-      id: 'LOG-1002',
-      title: 'Audit operator acknowledgment flow',
-      category: 'compliance',
-      status: 'in_review',
-      createdAt: '2024-07-19T12:00:00Z',
-      owner: 'Priya Patel',
-      payload: JSON.stringify({
-        revision: 2,
-        summary: 'Ensure operator acknowledgements are stored and timestamped.',
-        steps: [
-          'Sample 15 acknowledgement entries for completeness.',
-          'Confirm timestamp precision to the second.',
-          'Capture system screenshot for evidence.',
-        ],
-        ownerNotes: 'Focus on the July 12 deployment cohort.',
-      } satisfies InstructionPayload),
-    },
-    {
-      id: 'LOG-1003',
-      title: 'Validate emergency-stop drill logs',
-      category: 'safety',
-      status: 'approved',
-      createdAt: '2024-07-17T15:30:00Z',
-      owner: 'Jordan Lee',
-      payload: JSON.stringify({
-        revision: 3,
-        summary: 'Cross-check drill completion entries with safety officer notes.',
-        steps: [
-          'Verify drill duration against the standard operating window.',
-          'Ensure all participating teams signed off.',
-          'Archive evidence within the safety share.',
-        ],
-      } satisfies InstructionPayload),
-    },
-    {
-      id: 'LOG-1004',
-      title: 'Optimize packaging throughput plan',
-      category: 'efficiency',
-      status: 'pending',
-      createdAt: '2024-07-16T08:45:00Z',
-      owner: 'Marina Costa',
-      payload: JSON.stringify({
-        revision: 1,
-        summary: 'Analyse throughput data to identify packaging slowdowns.',
-        steps: [
-          'Aggregate hourly throughput metrics for the last 30 days.',
-          'Flag stations operating under 85% efficiency.',
-          'Propose a mitigation plan for critical stations.',
-        ],
-      } satisfies InstructionPayload),
-    },
-  ],
-  null,
-  2,
-)
+export interface InstructionLogParseResult {
+  entries: InstructionLogEntry[]
+  errors: InstructionLogParseError[]
+}
 
-export async function fetchInstructionLogs(): Promise<InstructionLogEntry[]> {
-  const parsed = safeParseJson(RAW_INSTRUCTION_RESPONSE, instructionResponseSchema)
+export const isInstructionRecord = (value: unknown): value is InstructionRecord =>
+  instructionRecordSchema.safeParse(value).success
 
-  if (!parsed.success) {
-    return []
-  }
+const formatValidationErrors = (issues: z.ZodIssue[]): string =>
+  issues
+    .map((issue) => {
+      const path = issue.path.length > 0 ? issue.path.join('.') : 'record'
+      return `${path}: ${issue.message}`
+    })
+    .join('; ')
 
-  const entries = parsed.data.reduce<InstructionLogEntry[]>((accumulator, item) => {
-    const payload = safeParseJson(item.payload, payloadSchema)
+export const parseInstructionLogLines = (raw: string): InstructionLogParseResult => {
+  const entries: InstructionLogEntry[] = []
+  const errors: InstructionLogParseError[] = []
 
-    if (!payload.success) {
-      return accumulator
+  raw.split(/\r?\n/).forEach((line, index) => {
+    const lineNumber = index + 1
+    const trimmed = line.trim()
+
+    if (!trimmed) {
+      return
     }
 
-    accumulator.push({
-      id: item.id,
-      title: item.title,
-      category: item.category,
-      status: item.status,
-      createdAt: item.createdAt,
-      owner: item.owner,
-      payload: payload.data,
+    let parsedJson: unknown
+
+    try {
+      parsedJson = JSON.parse(trimmed) as unknown
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid JSON'
+      errors.push({ line: lineNumber, message, raw: trimmed })
+      return
+    }
+
+    const parsedRecord = instructionRecordSchema.safeParse(parsedJson)
+
+    if (!parsedRecord.success) {
+      errors.push({
+        line: lineNumber,
+        message: formatValidationErrors(parsedRecord.error.issues),
+        raw: trimmed,
+      })
+      return
+    }
+
+    const record = parsedRecord.data
+
+    entries.push({
+      id: record.id,
+      title: record.title,
+      category: record.category,
+      status: record.status,
+      createdAt: record.createdAt,
+      owner: record.owner,
+      payload: record.payload,
     })
+  })
 
-    return accumulator
-  }, [])
+  entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  return entries.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )
+  return { entries, errors }
 }

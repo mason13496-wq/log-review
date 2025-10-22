@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   Alert,
   Card,
@@ -20,6 +20,7 @@ import {
 } from 'recharts'
 
 import { InstructionSummary } from '@/components/common/InstructionSummary'
+import { LogUploadCard } from '@/components/common/LogUploadCard'
 import {
   INSTRUCTION_CATEGORY_LABELS,
   INSTRUCTION_STATUS_COLORS,
@@ -35,11 +36,13 @@ const renderTooltipLabel = (label: unknown) => String(label ?? '')
 
 export const InstructionReviewPage = () => {
   const metrics = useInstructionMetrics()
-  const { logs, isLoading, loadLogs, error } = useInstructionStore()
+  const logs = useInstructionStore((state) => state.logs)
+  const uploadStatus = useInstructionStore((state) => state.uploadStatus)
+  const error = useInstructionStore((state) => state.error)
 
-  useEffect(() => {
-    void loadLogs()
-  }, [loadLogs])
+  const isProcessing = uploadStatus === 'reading' || uploadStatus === 'parsing'
+  const hasUploadedFile = uploadStatus !== 'idle'
+  const hasLogs = logs.length > 0
 
   const categoryChartData = useMemo(
     () =>
@@ -54,16 +57,11 @@ export const InstructionReviewPage = () => {
     () =>
       logs
         .filter((log) => log.status !== 'approved')
-        .sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        ),
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [logs],
   )
 
-  const recentActivity = useMemo(
-    () => logs.slice(0, 5),
-    [logs],
-  )
+  const recentActivity = useMemo(() => logs.slice(0, 5), [logs])
 
   const renderActivityListItem = (item: InstructionLogEntry) => (
     <List.Item key={item.id} className="activity-item">
@@ -99,21 +97,42 @@ export const InstructionReviewPage = () => {
         pipeline.
       </Typography.Paragraph>
 
-      <InstructionSummary metrics={metrics} />
+      <LogUploadCard />
+
+      {hasUploadedFile && <InstructionSummary metrics={metrics} />}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
-          <Card title="Instruction throughput" bordered={false} className="chart-card">
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryChartData} margin={chartMargin}>
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
-                  <Tooltip labelFormatter={renderTooltipLabel} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="var(--chart-bar-color)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <Card
+            title="Instruction throughput"
+            bordered={false}
+            className="chart-card"
+            loading={isProcessing}
+          >
+            {hasLogs ? (
+              <div className="chart-container">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryChartData} margin={chartMargin}>
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
+                    <Tooltip
+                      labelFormatter={renderTooltipLabel}
+                      cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="var(--chart-bar-color)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <Empty
+                description={
+                  hasUploadedFile
+                    ? 'No instruction entries available in the uploaded file'
+                    : 'Upload a log file to visualize instruction throughput'
+                }
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            )}
           </Card>
         </Col>
         <Col xs={24} lg={12}>
@@ -121,10 +140,16 @@ export const InstructionReviewPage = () => {
             title="Open instructions"
             bordered={false}
             className="list-card"
-            loading={isLoading}
+            loading={isProcessing}
           >
             {openInstructions.length === 0 ? (
-              <Empty description="All instructions are approved" />
+              <Empty
+                description={
+                  hasUploadedFile
+                    ? 'No open instructions in the parsed log'
+                    : 'Upload a log file to review instructions'
+                }
+              />
             ) : (
               <List
                 dataSource={openInstructions}
@@ -148,19 +173,25 @@ export const InstructionReviewPage = () => {
         title="Recent activity"
         bordered={false}
         className="list-card"
-        loading={isLoading}
+        loading={isProcessing}
       >
         {error && (
           <Alert
             type="error"
             showIcon
-            message="Unable to load instruction activity"
+            message="Unable to process instruction activity"
             description={error}
             style={{ marginBottom: 16 }}
           />
         )}
         {recentActivity.length === 0 ? (
-          <Empty description="No activity captured yet" />
+          <Empty
+            description={
+              hasUploadedFile
+                ? 'No instructions available in the uploaded file'
+                : 'Upload a log file to review instruction activity'
+            }
+          />
         ) : (
           <List dataSource={recentActivity} renderItem={renderActivityListItem} />
         )}
