@@ -6,13 +6,15 @@ import {
   INSTRUCTION_STATUS_COLORS,
   INSTRUCTION_STATUS_LABELS,
 } from '@/constants/instructions'
-import type { InstructionLogEntry } from '@/types/instruction'
+import type { InstructionLogEntry, InstructionValidationLookup } from '@/types/instruction'
 import { formatInstructionTimestamp } from '@/utils/date'
+import { getValidationSeverity, renderValidationTags } from './validationHelpers'
 
 interface InstructionListViewProps {
   instructions: InstructionLogEntry[]
   selectedId: string | null
   onSelect: (id: string) => void
+  validationLookup?: InstructionValidationLookup
 }
 
 const handleKeyPress = (event: KeyboardEvent<HTMLDivElement>, id: string, onSelect: (id: string) => void) => {
@@ -26,14 +28,33 @@ const renderPayload = (instruction: InstructionLogEntry) => (
   <pre className="instruction-payload">{JSON.stringify(instruction.payload, null, 2)}</pre>
 )
 
-export const InstructionListView = ({ instructions, selectedId, onSelect }: InstructionListViewProps) => {
+export const InstructionListView = ({
+  instructions,
+  selectedId,
+  onSelect,
+  validationLookup,
+}: InstructionListViewProps) => {
   return (
     <div className="instruction-list" role="list">
       {instructions.map((instruction) => {
         const isSelected = instruction.id === selectedId
-        const itemClassName = `instruction-list-item${
-          isSelected ? ' instruction-list-item--selected' : ''
-        }`
+        const validation = validationLookup?.[instruction.id]
+        const classNames = ['instruction-list-item']
+
+        if (isSelected) {
+          classNames.push('instruction-list-item--selected')
+        }
+
+        const validationSeverity = getValidationSeverity(validation)
+
+        if (validationSeverity === 'error') {
+          classNames.push('instruction-list-item--error')
+        } else if (validationSeverity === 'warning') {
+          classNames.push('instruction-list-item--warning')
+        }
+
+        const itemClassName = classNames.join(' ')
+        const validationTags = renderValidationTags(validation)
 
         return (
           <div
@@ -63,6 +84,7 @@ export const InstructionListView = ({ instructions, selectedId, onSelect }: Inst
                   {INSTRUCTION_STATUS_LABELS[instruction.status]}
                 </Tag>
                 <Tag>{instruction.owner}</Tag>
+                {validationTags}
               </Space>
 
               <Typography.Text type="secondary">

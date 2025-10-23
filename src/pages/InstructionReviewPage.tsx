@@ -4,10 +4,12 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 
 import { InstructionBrowser } from '@/components/instructions'
 import { InstructionSummary } from '@/components/common/InstructionSummary'
+import { InstructionValidationReportCard } from '@/components/common/InstructionValidationReportCard'
 import { LogUploadCard } from '@/components/common/LogUploadCard'
 import { INSTRUCTION_CATEGORY_LABELS } from '@/constants/instructions'
 import { useInstructionMetrics } from '@/hooks/useInstructionMetrics'
 import { useInstructionStore } from '@/hooks/useInstructionStore'
+import type { InstructionValidationLookup } from '@/types/instruction'
 
 const chartMargin = { top: 10, right: 0, left: -20, bottom: 0 }
 
@@ -16,8 +18,20 @@ const renderTooltipLabel = (label: unknown) => String(label ?? '')
 export const InstructionReviewPage = () => {
   const metrics = useInstructionMetrics()
   const logs = useInstructionStore((state) => state.logs)
+  const validationReport = useInstructionStore((state) => state.validationReport)
   const uploadStatus = useInstructionStore((state) => state.uploadStatus)
   const error = useInstructionStore((state) => state.error)
+
+  const validationLookup = useMemo<InstructionValidationLookup | undefined>(() => {
+    if (!validationReport) {
+      return undefined
+    }
+
+    return validationReport.results.reduce<InstructionValidationLookup>((accumulator, result) => {
+      accumulator[result.instructionId] = result
+      return accumulator
+    }, {})
+  }, [validationReport])
 
   const isProcessing = uploadStatus === 'reading' || uploadStatus === 'parsing'
   const hasUploadedFile = uploadStatus !== 'idle'
@@ -42,6 +56,10 @@ export const InstructionReviewPage = () => {
       <LogUploadCard />
 
       {hasUploadedFile && <InstructionSummary metrics={metrics} />}
+
+      {hasUploadedFile && (
+        <InstructionValidationReportCard report={validationReport ?? null} isLoading={isProcessing} />
+      )}
 
       <Row gutter={[16, 16]}>
         <Col xs={24}>
@@ -84,6 +102,7 @@ export const InstructionReviewPage = () => {
         isLoading={isProcessing}
         hasUploadedFile={hasUploadedFile}
         error={error}
+        validationLookup={validationLookup}
       />
     </Space>
   )

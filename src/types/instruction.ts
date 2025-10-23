@@ -44,3 +44,60 @@ export interface InstructionLogParseError {
   message: string
   raw?: string
 }
+
+export type InstructionValidationSeverity = 'error' | 'warning'
+
+export type InstructionValidationIssueCode =
+  | 'missing_sequence_start'
+  | 'missing_sequence_end'
+  | 'time_order_violation'
+  | 'status_regression'
+  | 'missing_required_field'
+  | 'missing_pair_end'
+  | 'missing_pair_start'
+  | 'insufficient_steps'
+
+export interface InstructionValidationIssue {
+  instructionId: string
+  actionCode: string
+  category: InstructionCategory
+  severity: InstructionValidationSeverity
+  code: InstructionValidationIssueCode
+  message: string
+  detail?: string
+  relatedInstructionIds?: string[]
+}
+
+export interface InstructionValidationResult {
+  instructionId: string
+  actionCode: string
+  title: string
+  category: InstructionCategory
+  issues: InstructionValidationIssue[]
+  errorCount: number
+  warningCount: number
+}
+
+export interface InstructionValidationCategorySummary {
+  category: InstructionCategory
+  instructionCount: number
+  affectedCount: number
+  errorCount: number
+  warningCount: number
+}
+
+export interface InstructionValidationReportTotals {
+  instructionCount: number
+  affectedCount: number
+  errorCount: number
+  warningCount: number
+}
+
+export interface InstructionValidationReport {
+  results: InstructionValidationResult[]
+  totals: InstructionValidationReportTotals
+  categorySummaries: InstructionValidationCategorySummary[]
+  generatedAt: string
+}
+
+export type InstructionValidationLookup = Record<string, InstructionValidationResult>

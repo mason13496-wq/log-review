@@ -6,13 +6,15 @@ import {
   INSTRUCTION_STATUS_COLORS,
   INSTRUCTION_STATUS_LABELS,
 } from '@/constants/instructions'
-import type { InstructionLogEntry } from '@/types/instruction'
+import type { InstructionLogEntry, InstructionValidationLookup } from '@/types/instruction'
 import { formatInstructionTimestamp } from '@/utils/date'
+import { getValidationSeverity, renderValidationTags } from './validationHelpers'
 
 interface InstructionCardViewProps {
   instructions: InstructionLogEntry[]
   selectedId: string | null
   onSelect: (id: string) => void
+  validationLookup?: InstructionValidationLookup
 }
 
 const handleKeyPress = (event: KeyboardEvent<HTMLDivElement>, id: string, onSelect: (id: string) => void) => {
@@ -26,12 +28,32 @@ const renderPayload = (instruction: InstructionLogEntry) => (
   <pre className="instruction-payload">{JSON.stringify(instruction.payload, null, 2)}</pre>
 )
 
-export const InstructionCardView = ({ instructions, selectedId, onSelect }: InstructionCardViewProps) => {
+export const InstructionCardView = ({
+  instructions,
+  selectedId,
+  onSelect,
+  validationLookup,
+}: InstructionCardViewProps) => {
   return (
     <Row gutter={[16, 16]} role="list">
       {instructions.map((instruction) => {
         const isSelected = instruction.id === selectedId
-        const cardClassName = `instruction-card${isSelected ? ' instruction-card--selected' : ''}`
+        const validation = validationLookup?.[instruction.id]
+        const validationSeverity = getValidationSeverity(validation)
+        const classNames = ['instruction-card']
+
+        if (isSelected) {
+          classNames.push('instruction-card--selected')
+        }
+
+        if (validationSeverity === 'error') {
+          classNames.push('instruction-card--error')
+        } else if (validationSeverity === 'warning') {
+          classNames.push('instruction-card--warning')
+        }
+
+        const cardClassName = classNames.join(' ')
+        const validationTags = renderValidationTags(validation)
 
         return (
           <Col xs={24} md={12} key={instruction.id} role="listitem">
@@ -62,6 +84,7 @@ export const InstructionCardView = ({ instructions, selectedId, onSelect }: Inst
                     {INSTRUCTION_STATUS_LABELS[instruction.status]}
                   </Tag>
                   <Tag>{instruction.owner}</Tag>
+                  {validationTags}
                 </Space>
 
                 <Typography.Text type="secondary">
