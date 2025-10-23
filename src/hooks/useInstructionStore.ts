@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 
 import { parseInstructionLogLines } from '@/services/instructionService'
+import { validateInstructionSequences } from '@/services/instructionValidation'
 import type {
   InstructionLogEntry,
   InstructionLogFileMetadata,
   InstructionLogParseError,
+  InstructionValidationReport,
 } from '@/types/instruction'
 
 export type UploadStatus = 'idle' | 'reading' | 'parsing' | 'complete' | 'error'
@@ -15,6 +17,7 @@ interface InstructionState {
   uploadProgress: number
   fileMetadata?: InstructionLogFileMetadata
   parseErrors: InstructionLogParseError[]
+  validationReport: InstructionValidationReport | null
   error?: string
   processLogFile: (file: File) => Promise<void>
   reset: () => void
@@ -26,6 +29,7 @@ const INITIAL_STATE: Omit<InstructionState, 'processLogFile' | 'reset'> = {
   uploadProgress: 0,
   fileMetadata: undefined,
   parseErrors: [],
+  validationReport: null,
   error: undefined,
 }
 
@@ -45,6 +49,7 @@ export const useInstructionStore = create<InstructionState>((set) => ({
       set({
         uploadStatus: 'error',
         uploadProgress: 0,
+        validationReport: null,
         error: 'Only .log files containing JSON Lines are supported',
       })
       return
@@ -55,6 +60,7 @@ export const useInstructionStore = create<InstructionState>((set) => ({
       parseErrors: [],
       fileMetadata: undefined,
       error: undefined,
+      validationReport: null,
       uploadStatus: 'reading',
       uploadProgress: 20,
     })
@@ -68,6 +74,7 @@ export const useInstructionStore = create<InstructionState>((set) => ({
       set({
         uploadStatus: 'error',
         uploadProgress: 0,
+        validationReport: null,
         error: message,
       })
       return
@@ -83,11 +90,13 @@ export const useInstructionStore = create<InstructionState>((set) => ({
     const nextErrorMessage = hasErrorsOnly
       ? 'No valid instruction records were found in the uploaded file'
       : undefined
+    const validationReport = hasValidEntries ? validateInstructionSequences(entries) : null
 
     set({
       logs: entries,
       parseErrors: errors,
       fileMetadata: toMetadata(file, entries.length),
+      validationReport,
       uploadStatus: nextStatus,
       uploadProgress: 100,
       error: nextErrorMessage,

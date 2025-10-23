@@ -3,7 +3,7 @@ import { Alert, Card, Empty, Segmented, Space, Typography } from 'antd'
 import type { SegmentedValue } from 'antd/es/segmented'
 import { useEffect, useMemo, useState } from 'react'
 
-import type { InstructionLogEntry } from '@/types/instruction'
+import type { InstructionLogEntry, InstructionValidationLookup } from '@/types/instruction'
 
 import { InstructionCardView } from './InstructionCardView'
 import { InstructionListView } from './InstructionListView'
@@ -16,6 +16,7 @@ interface InstructionBrowserProps {
   isLoading: boolean
   hasUploadedFile: boolean
   error?: string
+  validationLookup?: InstructionValidationLookup
 }
 
 const viewOptions = [
@@ -29,6 +30,7 @@ export const InstructionBrowser = ({
   isLoading,
   hasUploadedFile,
   error,
+  validationLookup,
 }: InstructionBrowserProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>('timeline')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -112,6 +114,7 @@ export const InstructionBrowser = ({
                 selectedId={selectedId}
                 selectedInstruction={selectedInstruction ?? null}
                 onSelect={handleInstructionSelect}
+                validationLookup={validationLookup}
               />
             )}
 
@@ -120,6 +123,7 @@ export const InstructionBrowser = ({
                 instructions={instructions}
                 selectedId={selectedId}
                 onSelect={handleInstructionSelect}
+                validationLookup={validationLookup}
               />
             )}
 
@@ -128,6 +132,7 @@ export const InstructionBrowser = ({
                 instructions={instructions}
                 selectedId={selectedId}
                 onSelect={handleInstructionSelect}
+                validationLookup={validationLookup}
               />
             )}
           </>

@@ -103,6 +103,16 @@
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.16);
 }
 
+.instruction-list-item--error {
+  border-color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.06);
+}
+
+.instruction-list-item--warning {
+  border-color: #faad14;
+  background: rgba(250, 173, 20, 0.08);
+}
+
 .instruction-card {
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -117,6 +127,16 @@
 .instruction-card--selected {
   border-color: var(--chart-bar-color) !important;
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.instruction-card--error {
+  border-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.16);
+}
+
+.instruction-card--warning {
+  border-color: #faad14 !important;
+  box-shadow: 0 0 0 2px rgba(250, 173, 20, 0.16);
 }
 
 .instruction-payload {
@@ -157,6 +177,16 @@
   transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
+.instruction-timeline-dot--error {
+  border-color: #ff4d4f !important;
+  background: rgba(255, 77, 79, 0.2);
+}
+
+.instruction-timeline-dot--warning {
+  border-color: #faad14 !important;
+  background: rgba(250, 173, 20, 0.2);
+}
+
 .instruction-timeline-dot--selected {
   background: currentColor;
   transform: scale(1.1);
@@ -181,6 +211,16 @@
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
 }
 
+.instruction-timeline-item--error {
+  border-color: rgba(255, 77, 79, 0.5);
+  background: rgba(255, 77, 79, 0.06);
+}
+
+.instruction-timeline-item--warning {
+  border-color: rgba(250, 173, 20, 0.5);
+  background: rgba(250, 173, 20, 0.08);
+}
+
 .instruction-step-section {
   width: 100%;
 }
@@ -192,6 +232,35 @@
 
 .instruction-step-list li {
   margin-bottom: 4px;
+}
+
+.instruction-validation-issues {
+  width: 100%;
+}
+
+.instruction-validation-issue {
+  width: 100%;
+}
+
+.validation-report-card {
+  background: #ffffff;
+}
+
+.validation-report-card .ant-card-head {
+  border-bottom: none;
+}
+
+.validation-category-card {
+  background: #fafafa;
+  border-radius: 10px;
+}
+
+.validation-report-item {
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 10px !important;
+  padding: 16px !important;
+  margin-bottom: 12px;
+  background: #ffffff;
 }
 
 @media (max-width: 768px) {

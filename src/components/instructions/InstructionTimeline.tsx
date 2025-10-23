@@ -7,14 +7,26 @@ import {
   INSTRUCTION_STATUS_COLORS,
   INSTRUCTION_STATUS_LABELS,
 } from '@/constants/instructions'
-import type { InstructionLogEntry } from '@/types/instruction'
+import type {
+  InstructionLogEntry,
+  InstructionValidationLookup,
+  InstructionValidationResult,
+} from '@/types/instruction'
 import { formatInstructionTimestamp } from '@/utils/date'
+import { getValidationSeverity, renderValidationTags } from './validationHelpers'
+import { InstructionValidationIssueList } from './InstructionValidationIssueList'
 
 interface InstructionTimelineProps {
   instructions: InstructionLogEntry[]
   selectedId: string | null
   selectedInstruction: InstructionLogEntry | null
   onSelect: (id: string) => void
+  validationLookup?: InstructionValidationLookup
+}
+
+const VALIDATION_COLORS: Record<'error' | 'warning', string> = {
+  error: '#ff4d4f',
+  warning: '#faad14',
 }
 
 const handleKeyPress = (event: KeyboardEvent<HTMLDivElement>, id: string, onSelect: (id: string) => void) => {
@@ -33,6 +45,7 @@ export const InstructionTimeline = ({
   selectedId,
   selectedInstruction,
   onSelect,
+  validationLookup,
 }: InstructionTimelineProps) => {
   const orderedInstructions = useMemo(
     () =>
@@ -50,21 +63,52 @@ export const InstructionTimeline = ({
     return orderedInstructions.find((instruction) => instruction.id === selectedId) ?? null
   }, [orderedInstructions, selectedId, selectedInstruction])
 
+  const resolvedSelectedValidation = useMemo<InstructionValidationResult | null>(() => {
+    if (!resolvedSelectedInstruction) {
+      return null
+    }
+
+    return validationLookup?.[resolvedSelectedInstruction.id] ?? null
+  }, [resolvedSelectedInstruction, validationLookup])
+
   const timelineItems = orderedInstructions.map((instruction) => {
     const isSelected = instruction.id === selectedId
-    const dotClassName = `instruction-timeline-dot${
-      isSelected ? ' instruction-timeline-dot--selected' : ''
-    }`
+    const validation = validationLookup?.[instruction.id]
+    const validationSeverity = getValidationSeverity(validation)
+    const color = validationSeverity ? VALIDATION_COLORS[validationSeverity] : instruction.action.color
+    const dotClassNames = ['instruction-timeline-dot']
+
+    if (isSelected) {
+      dotClassNames.push('instruction-timeline-dot--selected')
+    }
+
+    if (validationSeverity === 'error') {
+      dotClassNames.push('instruction-timeline-dot--error')
+    } else if (validationSeverity === 'warning') {
+      dotClassNames.push('instruction-timeline-dot--warning')
+    }
+
+    const itemClassNames = ['instruction-timeline-item']
+
+    if (isSelected) {
+      itemClassNames.push('instruction-timeline-item--selected')
+    }
+
+    if (validationSeverity === 'error') {
+      itemClassNames.push('instruction-timeline-item--error')
+    } else if (validationSeverity === 'warning') {
+      itemClassNames.push('instruction-timeline-item--warning')
+    }
+
+    const validationTags = renderValidationTags(validation)
 
     return {
       key: instruction.id,
-      color: instruction.action.color,
-      dot: <span className={dotClassName} style={{ borderColor: instruction.action.color }} />,
+      color,
+      dot: <span className={dotClassNames.join(' ')} style={{ borderColor: color }} />,
       children: (
         <div
-          className={`instruction-timeline-item${
-            isSelected ? ' instruction-timeline-item--selected' : ''
-          }`}
+          className={itemClassNames.join(' ')}
           role="button"
           tabIndex={0}
           aria-pressed={isSelected}
@@ -90,6 +134,7 @@ export const InstructionTimeline = ({
               <Tag color={INSTRUCTION_STATUS_COLORS[instruction.status]}>
                 {INSTRUCTION_STATUS_LABELS[instruction.status]}
               </Tag>
+              {validationTags}
             </Space>
 
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
@@ -100,6 +145,8 @@ export const InstructionTimeline = ({
       ),
     }
   })
+
+  const selectedValidationTags = renderValidationTags(resolvedSelectedValidation ?? undefined)
 
   return (
     <Row gutter={[24, 24]} className="instruction-timeline-layout">
@@ -122,6 +169,7 @@ export const InstructionTimeline = ({
                   {INSTRUCTION_STATUS_LABELS[resolvedSelectedInstruction.status]}
                 </Tag>
                 <Tag>{resolvedSelectedInstruction.owner}</Tag>
+                {selectedValidationTags}
               </Space>
 
               <Typography.Text type="secondary">
@@ -148,6 +196,8 @@ export const InstructionTimeline = ({
               <Typography.Text type="secondary" code>
                 Action code: {resolvedSelectedInstruction.action.code}
               </Typography.Text>
+
+              <InstructionValidationIssueList validation={resolvedSelectedValidation} />
 
               <Collapse
                 ghost
