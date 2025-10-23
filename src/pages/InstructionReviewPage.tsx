@@ -1,34 +1,13 @@
 import { useMemo } from 'react'
-import {
-  Alert,
-  Card,
-  Col,
-  Empty,
-  List,
-  Row,
-  Space,
-  Tag,
-  Typography,
-} from 'antd'
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Card, Col, Empty, Row, Space, Typography } from 'antd'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { InstructionBrowser } from '@/components/instructions'
 import { InstructionSummary } from '@/components/common/InstructionSummary'
 import { LogUploadCard } from '@/components/common/LogUploadCard'
-import {
-  INSTRUCTION_CATEGORY_LABELS,
-  INSTRUCTION_STATUS_COLORS,
-  INSTRUCTION_STATUS_LABELS,
-} from '@/constants/instructions'
+import { INSTRUCTION_CATEGORY_LABELS } from '@/constants/instructions'
 import { useInstructionMetrics } from '@/hooks/useInstructionMetrics'
 import { useInstructionStore } from '@/hooks/useInstructionStore'
-import type { InstructionLogEntry } from '@/types/instruction'
 
 const chartMargin = { top: 10, right: 0, left: -20, bottom: 0 }
 
@@ -53,43 +32,6 @@ export const InstructionReviewPage = () => {
     [metrics],
   )
 
-  const openInstructions = useMemo(
-    () =>
-      logs
-        .filter((log) => log.status !== 'approved')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [logs],
-  )
-
-  const recentActivity = useMemo(() => logs.slice(0, 5), [logs])
-
-  const renderActivityListItem = (item: InstructionLogEntry) => (
-    <List.Item key={item.id} className="activity-item">
-      <Space direction="vertical" size={4} style={{ width: '100%' }}>
-        <Space align="center" split="•">
-          <Typography.Text strong>{item.title}</Typography.Text>
-          <Typography.Text type="secondary">
-            {INSTRUCTION_CATEGORY_LABELS[item.category]}
-          </Typography.Text>
-        </Space>
-        <Typography.Text type="secondary">
-          Owner: {item.owner} • {new Date(item.createdAt).toLocaleString()}
-        </Typography.Text>
-        <Space wrap>
-          {item.payload.steps.map((step) => (
-            <Tag key={step}>{step}</Tag>
-          ))}
-        </Space>
-        {item.payload.ownerNotes && (
-          <Typography.Text type="secondary">{item.payload.ownerNotes}</Typography.Text>
-        )}
-        <Tag color={INSTRUCTION_STATUS_COLORS[item.status]}>
-          {INSTRUCTION_STATUS_LABELS[item.status]}
-        </Tag>
-      </Space>
-    </List.Item>
-  )
-
   return (
     <Space direction="vertical" size="large" className="page-container">
       <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
@@ -102,7 +44,7 @@ export const InstructionReviewPage = () => {
       {hasUploadedFile && <InstructionSummary metrics={metrics} />}
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
+        <Col xs={24}>
           <Card
             title="Instruction throughput"
             bordered={false}
@@ -135,67 +77,14 @@ export const InstructionReviewPage = () => {
             )}
           </Card>
         </Col>
-        <Col xs={24} lg={12}>
-          <Card
-            title="Open instructions"
-            bordered={false}
-            className="list-card"
-            loading={isProcessing}
-          >
-            {openInstructions.length === 0 ? (
-              <Empty
-                description={
-                  hasUploadedFile
-                    ? 'No open instructions in the parsed log'
-                    : 'Upload a log file to review instructions'
-                }
-              />
-            ) : (
-              <List
-                dataSource={openInstructions}
-                renderItem={(item) => (
-                  <List.Item key={item.id}>
-                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                      <Typography.Text strong>{item.title}</Typography.Text>
-                      <Typography.Text type="secondary">
-                        Owner: {item.owner} • {INSTRUCTION_STATUS_LABELS[item.status]}
-                      </Typography.Text>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            )}
-          </Card>
-        </Col>
       </Row>
 
-      <Card
-        title="Recent activity"
-        bordered={false}
-        className="list-card"
-        loading={isProcessing}
-      >
-        {error && (
-          <Alert
-            type="error"
-            showIcon
-            message="Unable to process instruction activity"
-            description={error}
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {recentActivity.length === 0 ? (
-          <Empty
-            description={
-              hasUploadedFile
-                ? 'No instructions available in the uploaded file'
-                : 'Upload a log file to review instruction activity'
-            }
-          />
-        ) : (
-          <List dataSource={recentActivity} renderItem={renderActivityListItem} />
-        )}
-      </Card>
+      <InstructionBrowser
+        instructions={logs}
+        isLoading={isProcessing}
+        hasUploadedFile={hasUploadedFile}
+        error={error}
+      />
     </Space>
   )
 }

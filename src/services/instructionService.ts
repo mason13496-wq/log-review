@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+import {
+  INSTRUCTION_CATEGORY_COLORS,
+  getInstructionActionMetadata,
+} from '@/constants/instructions'
 import type { InstructionLogEntry, InstructionLogParseError } from '@/types/instruction'
 
 const payloadSchema = z.object({
@@ -12,10 +16,10 @@ const payloadSchema = z.object({
 const categorySchema = z.enum(['quality', 'compliance', 'safety', 'efficiency'] as const)
 const statusSchema = z.enum(['pending', 'in_review', 'approved', 'rejected'] as const)
 
-const instructionRecordSchema = z.object({
+const baseInstructionSchema = z.object({
   id: z.string().min(1, 'id is required'),
-  title: z.string().min(1, 'title is required'),
-  category: categorySchema,
+  title: z.string().min(1, 'title is required').optional(),
+  category: categorySchema.optional(),
   status: statusSchema,
   createdAt: z
     .string()
@@ -26,6 +30,31 @@ const instructionRecordSchema = z.object({
   owner: z.string().min(1, 'owner is required'),
   payload: payloadSchema,
 })
+
+const instructionRecordSchema = baseInstructionSchema
+  .extend({
+    action: z.string().min(1, 'action is required').optional(),
+    actionCode: z.string().min(1, 'actionCode is required').optional(),
+    action_code: z.string().min(1, 'action_code is required').optional(),
+  })
+  .superRefine((value, ctx) => {
+    const resolvedAction = value.action ?? value.actionCode ?? value.action_code
+    if (!resolvedAction || resolvedAction.trim().length === 0) {
+      ctx.addIssue({
+        path: ['action'],
+        code: z.ZodIssueCode.custom,
+        message: 'action is required',
+      })
+    }
+  })
+  .transform((value) => {
+    const { action, actionCode, action_code, ...rest } = value
+    const resolvedAction = (action ?? actionCode ?? action_code ?? '').trim()
+    return {
+      ...rest,
+      action: resolvedAction,
+    }
+  })
 
 export type InstructionRecord = z.infer<typeof instructionRecordSchema>
 
@@ -80,14 +109,27 @@ export const parseInstructionLogLines = (raw: string): InstructionLogParseResult
 
     const record = parsedRecord.data
 
+    const actionMetadata = getInstructionActionMetadata(record.action)
+    const category = record.category ?? actionMetadata.category
+    const action =
+      category === actionMetadata.category
+        ? actionMetadata
+        : {
+            ...actionMetadata,
+            category,
+            color: INSTRUCTION_CATEGORY_COLORS[category],
+          }
+    const title = record.title ?? action.name
+
     entries.push({
       id: record.id,
-      title: record.title,
-      category: record.category,
+      title,
+      category,
       status: record.status,
       createdAt: record.createdAt,
       owner: record.owner,
       payload: record.payload,
+      action,
     })
   })
 
