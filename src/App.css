@@ -77,6 +77,16 @@
   padding-top: 12px;
 }
 
+.instruction-filter-bar {
+  width: 100%;
+}
+
+.search-highlight {
+  background: rgba(250, 173, 20, 0.24);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
 .instruction-list {
   display: flex;
   flex-direction: column;

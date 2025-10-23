@@ -13,6 +13,7 @@ import type {
   InstructionValidationResult,
 } from '@/types/instruction'
 import { formatInstructionTimestamp } from '@/utils/date'
+import { highlightMatches } from './searchUtils'
 import { getValidationSeverity, renderValidationTags } from './validationHelpers'
 import { InstructionValidationIssueList } from './InstructionValidationIssueList'
 
@@ -22,6 +23,7 @@ interface InstructionTimelineProps {
   selectedInstruction: InstructionLogEntry | null
   onSelect: (id: string) => void
   validationLookup?: InstructionValidationLookup
+  searchTokens: string[]
 }
 
 const VALIDATION_COLORS: Record<'error' | 'warning', string> = {
@@ -29,16 +31,22 @@ const VALIDATION_COLORS: Record<'error' | 'warning', string> = {
   warning: '#faad14',
 }
 
-const handleKeyPress = (event: KeyboardEvent<HTMLDivElement>, id: string, onSelect: (id: string) => void) => {
+const handleKeyPress = (
+  event: KeyboardEvent<HTMLDivElement>,
+  id: string,
+  onSelect: (id: string) => void,
+) => {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     onSelect(id)
   }
 }
 
-const renderPayload = (instruction: InstructionLogEntry) => (
-  <pre className="instruction-payload">{JSON.stringify(instruction.payload, null, 2)}</pre>
-)
+const renderPayload = (instruction: InstructionLogEntry, tokens: string[]) => {
+  const formattedPayload = JSON.stringify(instruction.payload, null, 2)
+
+  return <pre className="instruction-payload">{highlightMatches(formattedPayload, tokens)}</pre>
+}
 
 export const InstructionTimeline = ({
   instructions,
@@ -46,6 +54,7 @@ export const InstructionTimeline = ({
   selectedInstruction,
   onSelect,
   validationLookup,
+  searchTokens,
 }: InstructionTimelineProps) => {
   const orderedInstructions = useMemo(
     () =>
@@ -117,9 +126,11 @@ export const InstructionTimeline = ({
         >
           <Space direction="vertical" size={4} style={{ width: '100%' }}>
             <Space align="baseline" wrap>
-              <Typography.Text strong>{instruction.title}</Typography.Text>
+              <Typography.Text strong>
+                {highlightMatches(instruction.title, searchTokens)}
+              </Typography.Text>
               <Typography.Text type="secondary" code>
-                {instruction.action.code}
+                {highlightMatches(instruction.action.code, searchTokens)}
               </Typography.Text>
             </Space>
 
@@ -138,7 +149,7 @@ export const InstructionTimeline = ({
             </Space>
 
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              {instruction.payload.summary}
+              {highlightMatches(instruction.payload.summary, searchTokens)}
             </Typography.Paragraph>
           </Space>
         </div>
@@ -157,7 +168,7 @@ export const InstructionTimeline = ({
         {resolvedSelectedInstruction ? (
           <Card
             type="inner"
-            title={resolvedSelectedInstruction.title}
+            title={highlightMatches(resolvedSelectedInstruction.title, searchTokens)}
             className="instruction-timeline-detail"
           >
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -177,7 +188,7 @@ export const InstructionTimeline = ({
               </Typography.Text>
 
               <Typography.Paragraph style={{ marginBottom: 0 }}>
-                {resolvedSelectedInstruction.payload.summary}
+                {highlightMatches(resolvedSelectedInstruction.payload.summary, searchTokens)}
               </Typography.Paragraph>
 
               {resolvedSelectedInstruction.payload.steps.length > 0 && (
@@ -186,7 +197,7 @@ export const InstructionTimeline = ({
                   <ol className="instruction-step-list">
                     {resolvedSelectedInstruction.payload.steps.map((step, index) => (
                       <li key={`${resolvedSelectedInstruction.id}-timeline-step-${index}`}>
-                        <Typography.Text>{step}</Typography.Text>
+                        <Typography.Text>{highlightMatches(step, searchTokens)}</Typography.Text>
                       </li>
                     ))}
                   </ol>
@@ -194,7 +205,8 @@ export const InstructionTimeline = ({
               )}
 
               <Typography.Text type="secondary" code>
-                Action code: {resolvedSelectedInstruction.action.code}
+                Action code:{' '}
+                {highlightMatches(resolvedSelectedInstruction.action.code, searchTokens)}
               </Typography.Text>
 
               <InstructionValidationIssueList validation={resolvedSelectedValidation} />
@@ -207,7 +219,7 @@ export const InstructionTimeline = ({
                   {
                     key: `${resolvedSelectedInstruction.id}-timeline-payload`,
                     label: 'View payload JSON',
-                    children: renderPayload(resolvedSelectedInstruction),
+                    children: renderPayload(resolvedSelectedInstruction, searchTokens),
                   },
                 ]}
               />
