@@ -9,6 +9,13 @@ export interface InstructionPayload {
   ownerNotes?: string
 }
 
+export interface InstructionActionMetadata {
+  code: string
+  name: string
+  category: InstructionCategory
+  color: string
+}
+
 export interface InstructionLogEntry {
   id: string
   title: string
@@ -17,6 +24,7 @@ export interface InstructionLogEntry {
   createdAt: string
   owner: string
   payload: InstructionPayload
+  action: InstructionActionMetadata
 }
 
 export interface InstructionMetric {
