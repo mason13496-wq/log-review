@@ -52,8 +52,31 @@
   height: 260px;
 }
 
+.chart-container--pie,
+.chart-container--timeline {
+  height: 280px;
+}
+
 .summary-card {
   background: #f7f9fc;
+}
+
+.stats-card {
+  background: #ffffff;
+}
+
+.stat-card {
+  background: #f7f9fc;
+  border-radius: 10px;
+  height: 100%;
+}
+
+.stat-card .ant-card-body {
+  padding: 16px;
+}
+
+.stat-card .ant-typography {
+  margin-top: 4px;
 }
 
 .summary-card .ant-statistic-content-value {
@@ -63,6 +86,27 @@
 .chart-card,
 .list-card {
   background: #ffffff;
+}
+
+.chart-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px 16px;
+}
+
+.chart-legend-dot {
+  display: inline-flex;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.top-actions-item {
+  padding: 12px 0 !important;
+}
+
+.top-actions-item + .top-actions-item {
+  border-top: 1px solid #f0f0f0;
 }
 
 .activity-item .ant-typography-secondary {
