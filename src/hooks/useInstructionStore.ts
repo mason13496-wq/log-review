@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { parseInstructionLogLines } from '@/services/instructionService'
 import { validateInstructionSequences } from '@/services/instructionValidation'
 import type {
+  InstructionCategory,
   InstructionLogEntry,
   InstructionLogFileMetadata,
   InstructionLogParseError,
@@ -10,6 +11,13 @@ import type {
 } from '@/types/instruction'
 
 export type UploadStatus = 'idle' | 'reading' | 'parsing' | 'complete' | 'error'
+
+export type InstructionFilters = {
+  categories: InstructionCategory[]
+  actionCodes: string[]
+  timeRange: [string | null, string | null]
+  searchTerm: string
+}
 
 interface InstructionState {
   logs: InstructionLogEntry[]
@@ -19,11 +27,24 @@ interface InstructionState {
   parseErrors: InstructionLogParseError[]
   validationReport: InstructionValidationReport | null
   error?: string
+  filters: InstructionFilters
   processLogFile: (file: File) => Promise<void>
   reset: () => void
+  setFilters: (filters: Partial<InstructionFilters>) => void
+  clearFilters: () => void
 }
 
-const INITIAL_STATE: Omit<InstructionState, 'processLogFile' | 'reset'> = {
+const createInitialFilters = (): InstructionFilters => ({
+  categories: [],
+  actionCodes: [],
+  timeRange: [null, null],
+  searchTerm: '',
+})
+
+const createInitialState = (): Omit<
+  InstructionState,
+  'processLogFile' | 'reset' | 'setFilters' | 'clearFilters'
+> => ({
   logs: [],
   uploadStatus: 'idle',
   uploadProgress: 0,
@@ -31,7 +52,8 @@ const INITIAL_STATE: Omit<InstructionState, 'processLogFile' | 'reset'> = {
   parseErrors: [],
   validationReport: null,
   error: undefined,
-}
+  filters: createInitialFilters(),
+})
 
 const isSupportedLogFile = (file: File) => file.name.toLowerCase().endsWith('.log')
 
@@ -43,7 +65,7 @@ const toMetadata = (file: File, instructionCount: number): InstructionLogFileMet
 })
 
 export const useInstructionStore = create<InstructionState>((set) => ({
-  ...INITIAL_STATE,
+  ...createInitialState(),
   processLogFile: async (file: File) => {
     if (!isSupportedLogFile(file)) {
       set({
@@ -63,6 +85,7 @@ export const useInstructionStore = create<InstructionState>((set) => ({
       validationReport: null,
       uploadStatus: 'reading',
       uploadProgress: 20,
+      filters: createInitialFilters(),
     })
 
     let fileContent = ''
@@ -102,5 +125,15 @@ export const useInstructionStore = create<InstructionState>((set) => ({
       error: nextErrorMessage,
     })
   },
-  reset: () => set({ ...INITIAL_STATE }),
+  reset: () => set(() => createInitialState()),
+  setFilters: (nextFilters) =>
+    set((state) => ({
+      filters: {
+        categories: nextFilters.categories ?? state.filters.categories,
+        actionCodes: nextFilters.actionCodes ?? state.filters.actionCodes,
+        timeRange: nextFilters.timeRange ?? state.filters.timeRange,
+        searchTerm: nextFilters.searchTerm ?? state.filters.searchTerm,
+      },
+    })),
+  clearFilters: () => set({ filters: createInitialFilters() }),
 }))

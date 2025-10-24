@@ -8,6 +8,7 @@ import {
 } from '@/constants/instructions'
 import type { InstructionLogEntry, InstructionValidationLookup } from '@/types/instruction'
 import { formatInstructionTimestamp } from '@/utils/date'
+import { highlightMatches } from './searchUtils'
 import { getValidationSeverity, renderValidationTags } from './validationHelpers'
 
 interface InstructionCardViewProps {
@@ -15,24 +16,32 @@ interface InstructionCardViewProps {
   selectedId: string | null
   onSelect: (id: string) => void
   validationLookup?: InstructionValidationLookup
+  searchTokens: string[]
 }
 
-const handleKeyPress = (event: KeyboardEvent<HTMLDivElement>, id: string, onSelect: (id: string) => void) => {
+const handleKeyPress = (
+  event: KeyboardEvent<HTMLDivElement>,
+  id: string,
+  onSelect: (id: string) => void,
+) => {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     onSelect(id)
   }
 }
 
-const renderPayload = (instruction: InstructionLogEntry) => (
-  <pre className="instruction-payload">{JSON.stringify(instruction.payload, null, 2)}</pre>
-)
+const renderPayload = (instruction: InstructionLogEntry, tokens: string[]) => {
+  const formattedPayload = JSON.stringify(instruction.payload, null, 2)
+
+  return <pre className="instruction-payload">{highlightMatches(formattedPayload, tokens)}</pre>
+}
 
 export const InstructionCardView = ({
   instructions,
   selectedId,
   onSelect,
   validationLookup,
+  searchTokens,
 }: InstructionCardViewProps) => {
   return (
     <Row gutter={[16, 16]} role="list">
@@ -69,10 +78,10 @@ export const InstructionCardView = ({
               <Space direction="vertical" size={10} style={{ width: '100%' }}>
                 <Space align="baseline" wrap>
                   <Typography.Title level={5} style={{ margin: 0 }}>
-                    {instruction.title}
+                    {highlightMatches(instruction.title, searchTokens)}
                   </Typography.Title>
                   <Typography.Text type="secondary" code>
-                    {instruction.action.code}
+                    {highlightMatches(instruction.action.code, searchTokens)}
                   </Typography.Text>
                 </Space>
 
@@ -92,13 +101,15 @@ export const InstructionCardView = ({
                 </Typography.Text>
 
                 <Typography.Paragraph style={{ marginBottom: 0 }}>
-                  {instruction.payload.summary}
+                  {highlightMatches(instruction.payload.summary, searchTokens)}
                 </Typography.Paragraph>
 
                 {instruction.payload.steps.length > 0 && (
                   <Space size={[8, 8]} wrap>
                     {instruction.payload.steps.map((step, index) => (
-                      <Tag key={`${instruction.id}-card-step-${index}`}>{step}</Tag>
+                      <Tag key={`${instruction.id}-card-step-${index}`}>
+                        {highlightMatches(step, searchTokens)}
+                      </Tag>
                     ))}
                   </Space>
                 )}
@@ -111,7 +122,7 @@ export const InstructionCardView = ({
                     {
                       key: `${instruction.id}-card-payload`,
                       label: 'View payload JSON',
-                      children: renderPayload(instruction),
+                      children: renderPayload(instruction, searchTokens),
                     },
                   ]}
                 />
